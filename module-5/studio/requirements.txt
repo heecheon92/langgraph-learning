@@ -1,0 +1,6 @@
+langgraph
+langchain-core
+langchain-community
+langchain-openai
+trustcall
+aiohttp>=3.13.4
