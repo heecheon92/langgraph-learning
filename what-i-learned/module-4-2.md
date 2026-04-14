@@ -80,7 +80,84 @@ If I ignore the implementation details, this graph feels like:
 
 That mental model made the example much easier for me.
 
-## 2. Phase one: create the analysts
+## 2. Why the tutorial calls this "multi-agent"
+
+This was the most confusing part for me, because at first it did not feel like a true multi-agent system.
+
+The notebook says the goal is to build a lightweight multi-agent system around chat models.
+That wording is fair, but only if I use a loose definition of "agent."
+
+What makes it multi-agent in this example is:
+
+- the outer graph creates multiple analyst personas
+- each analyst is sent into its own `conduct_interview` subgraph run
+- each run has its own local `InterviewState`
+- those interview runs happen in parallel
+- each run produces one memo / section for the final report
+
+So the agent-like units are not:
+
+- analyst
+- searcher
+- expert
+
+as three separate agent species.
+
+Instead, the agent-like units are:
+
+- analyst interview worker 1
+- analyst interview worker 2
+- analyst interview worker 3
+
+and so on.
+
+The cleanest mental model is:
+
+- outer graph = supervisor
+- each `conduct_interview` run = one analyst-style worker
+- final report stage = reducer / synthesis step
+
+That is why the example can still be called multi-agent.
+
+### What not to be confused about
+
+This file does **not** define a fully separate search agent and a fully separate expert agent.
+
+Inside each interview worker:
+
+- `generate_question` is the analyst behavior
+- `search_web` and `search_wikipedia` are retrieval nodes / tools
+- `generate_answer` is an expert-style answer step
+- `write_section` is the memo-writing step
+
+Those are internal stages inside one interview workflow.
+They are not autonomous agents with their own orchestration layer.
+
+So if I use a stricter definition of multi-agent, this example is:
+
+- more than one prompt
+- more than one role
+- more than one parallel worker
+
+but less than a full society of independent agents.
+
+### The most precise way I would describe it
+
+This example is best described as:
+
+- a supervisor graph
+- coordinating multiple parallel analyst interview workers
+- where each worker internally uses retrieval and an expert-answer role
+
+That is more precise than saying:
+
+- one analyst agent
+- one search agent
+- one expert agent
+
+because the searcher and expert are really just steps inside each analyst-centered worker.
+
+## 3. Phase one: create the analysts
 
 The first node is `create_analysts`.
 
@@ -112,7 +189,7 @@ it becomes:
 
 That makes the later report broader and more interesting.
 
-## 3. Human approval happens before the expensive work
+## 4. Human approval happens before the expensive work
 
 After creating analysts, the graph pauses at `human_feedback`.
 
@@ -140,7 +217,7 @@ The router `initiate_all_interviews` checks the human feedback:
 
 That makes the analyst-generation step iterative and controllable.
 
-## 4. Each analyst runs through an interview subgraph
+## 5. Each analyst runs through an interview subgraph
 
 This is the part that makes the example feel big.
 
@@ -155,7 +232,14 @@ So the outer graph is basically saying:
 
 That means this example is using subgraph composition and parallelization at the same time.
 
-## 5. What happens inside one interview
+This is also the strongest code-level reason the example counts as multi-agent:
+
+- one subgraph definition
+- many independent runs of that subgraph
+- one run per analyst persona
+- all merged later by the outer graph
+
+## 6. What happens inside one interview
 
 Inside the interview subgraph, the flow is roughly:
 
@@ -186,7 +270,7 @@ What helped me understand this is realizing that the graph is simulating two rol
 So this is not just retrieval plus summarization.
 It is a staged conversation where retrieval feeds the expert answers.
 
-## 6. The interview loop is controlled by a router
+## 7. The interview loop is controlled by a router
 
 The router is `route_messages`.
 
@@ -211,7 +295,7 @@ So the pattern is:
 
 That makes the workflow feel agentic, but still bounded.
 
-## 7. Retrieval happens in parallel inside each interview
+## 8. Retrieval happens in parallel inside each interview
 
 This part connects the example back to the rest of Module 4.
 
@@ -231,7 +315,7 @@ That means the full graph has parallelism at two levels:
 
 That nesting is one reason the example feels more advanced than the earlier Module 4 demos.
 
-## 8. Each interview becomes one section
+## 9. Each interview becomes one section
 
 When an interview ends, the graph saves the transcript and then runs `write_section`.
 
@@ -251,7 +335,7 @@ That was the most useful simplification for me:
 
 Once I looked at it that way, the rest of the graph made much more sense.
 
-## 9. The outer graph is basically a map-reduce report writer
+## 10. The outer graph is basically a map-reduce report writer
 
 After the interviews are done, the outer graph moves into synthesis.
 
@@ -279,7 +363,7 @@ So the overall structure is very close to map-reduce:
 - collect: accumulate all sections
 - reduce: merge sections into one polished report
 
-## 10. Why this example matters
+## 11. Why this example matters
 
 To me, this example is important because it shows what LangGraph looks like when multiple smaller patterns are combined into one application.
 
@@ -299,7 +383,7 @@ The graph combines:
 
 So this example feels like a mini research pipeline, not just a notebook demo.
 
-## 11. My simplified takeaway
+## 12. My simplified takeaway
 
 If I had to explain this whole graph in one short paragraph:
 
@@ -307,7 +391,7 @@ The research assistant first creates a few analyst personas, asks a human to app
 
 That is the simple version.
 
-## 12. What I personally want to remember
+## 13. What I personally want to remember
 
 - The graph is easier to understand if I separate outer flow from inner interview flow.
 - The outer graph manages analysts and final report assembly.
@@ -316,3 +400,4 @@ That is the simple version.
 - `Send` is what turns a list of analysts into parallel interview runs.
 - Reducers are what let many branches contribute sections and context safely.
 - This example is really a composition demo disguised as a research assistant.
+- The multi-agent part is the parallel analyst interview workers, not every role prompt inside the worker.
